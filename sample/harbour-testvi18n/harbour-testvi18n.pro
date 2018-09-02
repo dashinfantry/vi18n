@@ -21,7 +21,7 @@ SOURCES += src/harbour-testvi18n.cpp
 OTHER_FILES += \
     qml/pages/*.qml \
     qml/cover/*.qml \
-    rpm/harbour-testvi18n.changes.in \
+    rpm/harbour-testvi18n.changes \
     rpm/harbour-testvi18n.spec \
     rpm/harbour-testvi18n.yaml \
     harbour-testvi18n.desktop

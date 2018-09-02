@@ -7,11 +7,8 @@
 
 #include <QDebug>
 
-#define DEF_LNG QLocale::English
-
-static QRegularExpression keyvalreg("^\\s*([^#][^=\\s]+)\\s*=\\s*(.+)\\s*$");
-
-static QString i18n_path;
+static QString i18n_directory;             // directory for the translation files
+static QString i18n_prefix;                // prefix of the vi18n translation files
 
 /**
  * @brief return singleton instance
@@ -29,10 +26,15 @@ vI18n& vI18n::getInstance() {
  * @param view
  * @param name
  */
-void vI18n::init(QQmlContext *context,QString name) {
+void vI18n::init(QQmlContext *context, const QString name,
+                 const QString directory, const QString prefix ) {
 #ifdef QT_DEBUG
     qDebug() << "vi18n, registering qml service as : " << name;
 #endif
+
+    i18n_directory=QString(directory);
+    i18n_prefix=QString(prefix);
+
     context->setContextProperty(name, &vI18n::getInstance());
 }
 
@@ -42,19 +44,39 @@ void vI18n::init(QQmlContext *context,QString name) {
  */
 vI18n::vI18n(QObject *parent) : QObject(parent) {
 
-    i18n_path=SailfishApp::pathTo(I18N_DIR).toString(QUrl::PreferLocalFile);
+    i18n_directory=i18n_directory.isEmpty() ? VI18N_DIR : i18n_directory;
+    i18n_prefix=i18n_prefix.isEmpty() ?VI18N_PREFIX : i18n_prefix;
 
 #ifdef QT_DEBUG
-    qDebug() << "vi18n, using config directory : " << i18n_path;
+    qDebug() << "vi18n, using config directory : " <<
+                SailfishApp::pathTo(i18n_directory).toString(QUrl::PreferLocalFile);
 #endif
 
-    data_d =loadTranslation(DEF_LNG);
+    current = QLocale::system().language();
+    reload();
+}
+
+/**
+  * reload the database from sources files.
+  * This is already done on object (vi18n) initialisation;
+  * You should never have to use this method unless you changing translation
+  * files while app running
+  * @since 1.6
+  */
+void vI18n::reload() {
+
+    available = loadLanguageList();
+
+    data.empty();
+
+    data_d =loadTranslation(VI18N_DEF_LNG);
     // let's avoid null pointer
     data_d = data_d == NULL ? new QHash<QString,QString>() : data_d;
-    data.insert(DEF_LNG,data_d );
+    data.insert(VI18N_DEF_LNG,data_d );
 
-    if(setLanguage(QLocale::system().bcp47Name()) ==false) {
-        current=DEF_LNG;
+    // load current language
+    if(setLanguage( QLocale(current).bcp47Name() ) ==false) {
+        current=VI18N_DEF_LNG;
         // again avoiding null pointer if user locale not defined
         data_c =  data_d ;
     }
@@ -80,6 +102,7 @@ bool vI18n::setLanguage(QString bcp47)  {
     current = lng;
     data_c = data.value(lng);
     emit languageChanged(bcp47);
+
     return true;
 }
 
@@ -90,15 +113,6 @@ bool vI18n::setLanguage(QString bcp47)  {
  * @return translated key, or just 'key'
  */
 QString const vI18n::get(QString const &key) {
-    return getInstance().getImp(key);
-}
-
-/**
- * @brief vI18n::getImp
- * @param key
- * @return
- */
-QString const vI18n::getImp(QString const &key) {
     if(data_c->contains(key)) {
         return data_c->value(key);
     }
@@ -123,17 +137,9 @@ QString const vI18n::getImp(QString const &key) {
  * @return
  */
 QString const vI18n::get(QString const &key, QString const &bcp47)  {
-    QLocale::Language lng= QLocale(bcp47).language();
-    return getInstance().getImp(key,lng);
-}
 
-/**
- * @brief vI18n::get
- * @param key
- * @param lng
- * @return
- */
-QString const vI18n::getImp(QString const &key, QLocale::Language lng)  {
+    QLocale::Language lng= QLocale(bcp47).language();
+
     if(data.contains(lng)) {
         Vi18nItem d=data.value(lng);
         if(d->contains(key) ) {
@@ -143,14 +149,12 @@ QString const vI18n::getImp(QString const &key, QLocale::Language lng)  {
         // lng not found, try to load it
         Vi18nItem dl= loadTranslation(lng);
 
-        if( dl!=NULL) {
-            data.insert(lng,dl);
-        } else {
-            // can't found, use default (avoiding triy to load each time)
-            data.insert(lng,data_d);
-        }
+        // insert data to the tree or overide with default if no suitable file found
+        // (avoiding trying to load each time)
+        data.insert(lng, dl != NULL ? dl : data_d);
 
-        return getImp(key,lng);
+        // ok, not going to be an infinite loop, we just added lng to the hash
+        return get(key,bcp47);
     }
 
     // ok, try with default...
@@ -162,20 +166,39 @@ QString const vI18n::getImp(QString const &key, QLocale::Language lng)  {
 }
 
 /**
+ * @brief load the list of all defined language from the properties' directory
+ * @return
+ */
+QList<QString> vI18n::loadLanguageList() {
+    QRegularExpression exp( "^"+ i18n_prefix + "-([^-\\.]{2})\\.properties$");
+    QList<QString> list;
+
+    QDir dir( SailfishApp::pathTo(i18n_directory).toString(QUrl::PreferLocalFile) );
+    dir.setFilter(QDir::Files|QDir::Readable|QDir::NoDotAndDotDot);
+
+    QStringList file = dir.entryList();
+    foreach (QString str, file) {
+        QRegularExpressionMatch m = exp.match(str);
+        if(m.hasMatch()) {
+            list.append( m.captured(1) );
+        }
+    }
+
+    return list;
+}
+
+/**
  * @brief vI18n::loadTranslation
  * @param lng
  * @return
  */
 Vi18nItem vI18n::loadTranslation(QLocale::Language lng) {
-/*
-    QFile f(i18n_path + "/" +QCoreApplication::applicationName() +
-            ( lng == QLocale::English ? "" : "_" + QLocale(lng).bcp47Name() )+
-            ".properties");
-*/
-    QFile f(i18n_path + "/vi18n" +
-            ( lng == QLocale::English ? "" : "-" + QLocale(lng).bcp47Name() )+
-            ".properties");
+    static QRegularExpression keyvalreg("^\\s*([^#][^=\\s]+)\\s*=\\s*(.+)\\s*$");
 
+    QFile f( SailfishApp::pathTo(i18n_directory).toString(QUrl::PreferLocalFile)
+             + "/" + VI18N_PREFIX +
+             ( lng == QLocale::English ? "" : "-" + QLocale(lng).bcp47Name() )+
+             ".properties");
 
     if(!f.open(QIODevice::ReadOnly| QIODevice::Text)) {
 #ifdef QT_DEBUG

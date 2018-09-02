@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 Jerome levreau / vostoksystem.
+  Copyright (C) 2016-2018 Jerome levreau / vostoksystem.
   Contact: contact <contact@vostoksytem.eu>
   All rights reserved.
 
@@ -27,11 +27,21 @@
 #include <QQmlContext>
 #include <QDebug>
 
-// name of the directory - inside /usr/share - for the translation files
-#define I18N_DIR "i18n"
+// default name of the directory - inside /usr/share - for the translation files
+#define VI18N_DIR "i18n"
+
+// default prefix for properties files
+#define VI18N_PREFIX "vi18n"
 
 // name of the service which is available into qml
 #define VI18N_QML_NAME "vi18n"
+
+// language id for the default properties file
+#define VI18N_DEF_LNG QLocale::English
+
+//use this macro in your cpp to make your code simpler
+#define VI18N vI18n::getInstance()
+
 
 typedef QHash<QString,QString> * Vi18nItem;
 
@@ -76,7 +86,7 @@ typedef QHash<QString,QString> * Vi18nItem;
  *  
  * check the sample project for usage and install instruction
  * 
- * @version 1.4
+ * @version 1.6
  * @author levreau.jerome@vostoksystem.eu
  */
 class vI18n : public QObject {
@@ -97,8 +107,18 @@ public:
      * You can also register service by yourself (or not, if you don't need translation in qml)
      * @param context
      * @param name ; name for service, default to VI18N_QML_NAME
+     * @param directory : name of the directory under /usr/share for the translation files, default to VI18N_DIR
+     * @param prefix : prefix for the translation files, default to VI18N_PREFIX
      */
-    static void init(QQmlContext *context, QString name = VI18N_QML_NAME);
+    static void init(QQmlContext *context, const QString name = VI18N_QML_NAME,
+          const QString directory= VI18N_DIR, const QString prefix = VI18N_PREFIX );
+
+    /**
+     * @brief setup
+     * @param directoy
+     * @param prefix
+     */
+    static void setup();
 
     /**
      * @brief Change current language. Default to user's locale. use a bcp47 (2 letters code)
@@ -126,30 +146,58 @@ public:
     }
 
     /**
+      * return the list of all languages with actual properties files
+      * - excluding default, typicaly "en" - as a bcp47 code (2 letters name)
+      *
+      * @return the list, might be empty but never null
+      * @since 1.6
+      */
+    Q_INVOKABLE QList<QString> const getAvailableLanguage() const {
+        return available;
+    }
+
+    /**
+      * reload the database from sources files.
+      * This is already done on object (vi18n initialisation);
+      * You should never have to use this method unless you changing translation
+      *  files while app running
+      * @since 1.6
+      */
+    Q_INVOKABLE void reload();
+
+    /**
      * @brief return value for key. If not found, try default, e.i. english, still not, return key.
      * From qml use vi18n.get("your key")
      * @param key
      * @return translated key, or just 'key'
+     * @since 1.6 removed static keyword
      */
-    Q_INVOKABLE static QString const get(QString const &key );
+    Q_INVOKABLE QString const get(QString const &key );
 
     /**
      * @brief return value for key in language bcp47.  If not found, try default, e.i. english.
      * From qml, in german, use vi18n.get("your key", 42 ), check QLocal::Language for list of code
      * @param key
      * @param bcp47 2 char language code, e.i en, fr, de...
+     * @since 1.6 removed static keyword
      * @return
      */
-    Q_INVOKABLE static QString const get(QString const &key, QString const &bcp47) ;
+    Q_INVOKABLE QString const get(QString const &key, QString const &bcp47) ;
 
 private :
     explicit vI18n(QObject *parent = 0);
 
-    Vi18nItem loadTranslation(QLocale::Language lng);
-    QString const getImp(QString const &key );
-    QString const getImp(QString const &key, QLocale::Language lng) ;
+    /**
+     * @brief load the list of all defined language from the properties' directory
+     * @return
+     */
+    static QList<QString> loadLanguageList();
 
-    QLocale::Language current; // current locale
+    // load a translation into the data base from sources properties files
+    static Vi18nItem loadTranslation(QLocale::Language lng);
+
+    QList<QString> available;           // language available (bcp47
+    QLocale::Language current;          // current locale
 
     QHash<QLocale::Language,Vi18nItem> data; // language 'tree'
     Vi18nItem data_c; //current language set
@@ -161,8 +209,6 @@ signals:
      * @param lng new language too use.
      */
     void languageChanged(QString bcp47);
-
-public slots:
 };
 
 #endif // VI18N_H
