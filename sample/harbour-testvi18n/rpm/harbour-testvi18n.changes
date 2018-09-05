@@ -1,0 +1,24 @@
+# Rename this file as TestVI18n.changes to include changelog
+# entries in your RPM file.
+#
+# Add new changelog entries following the format below.
+# Add newest entries to the top of the list.
+# Separate entries from eachother with a blank line.
+
+# * date Author's Name <author's email> version-release
+# - Summary of changes
+
+* Wen Sep 5 2018 1.6.2
+	correct typo on translation prefix 
+	removed unused function from header
+	
+* Fri Aug 31 2018 1.6
+    added VI18N macro for shorter cpp code
+    can now reload while app running
+    directory name and translation file prefix not static anymore
+    can list available languages
+    get method is not static anymore
+
+
+* Mon Aug 28 2017 1.2
+	update source code to implement the new pri asset

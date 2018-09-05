@@ -196,7 +196,7 @@ Vi18nItem vI18n::loadTranslation(QLocale::Language lng) {
     static QRegularExpression keyvalreg("^\\s*([^#][^=\\s]+)\\s*=\\s*(.+)\\s*$");
 
     QFile f( SailfishApp::pathTo(i18n_directory).toString(QUrl::PreferLocalFile)
-             + "/" + VI18N_PREFIX +
+             + "/" + i18n_prefix +
              ( lng == QLocale::English ? "" : "-" + QLocale(lng).bcp47Name() )+
              ".properties");
 

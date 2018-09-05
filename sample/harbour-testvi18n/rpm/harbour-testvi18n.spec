@@ -13,7 +13,7 @@ Name:       harbour-testvi18n
 %{!?qtc_make:%define qtc_make make}
 %{?qtc_builddir:%define _builddir %qtc_builddir}
 Summary:    Test application for VI18n Lib
-Version:    0.2
+Version:    1.6.2
 Release:    1
 Group:      Qt/Qt
 License:    LICENSE

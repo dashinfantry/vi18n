@@ -86,7 +86,7 @@ typedef QHash<QString,QString> * Vi18nItem;
  *  
  * check the sample project for usage and install instruction
  * 
- * @version 1.6
+ * @version 1.6.2
  * @author levreau.jerome@vostoksystem.eu
  */
 class vI18n : public QObject {

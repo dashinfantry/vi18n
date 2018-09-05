@@ -86,7 +86,7 @@ typedef QHash<QString,QString> * Vi18nItem;
  *  
  * check the sample project for usage and install instruction
  * 
- * @version 1.6
+ * @version 1.6.2
  * @author levreau.jerome@vostoksystem.eu
  */
 class vI18n : public QObject {
@@ -112,13 +112,6 @@ public:
      */
     static void init(QQmlContext *context, const QString name = VI18N_QML_NAME,
           const QString directory= VI18N_DIR, const QString prefix = VI18N_PREFIX );
-
-    /**
-     * @brief setup
-     * @param directoy
-     * @param prefix
-     */
-    static void setup();
 
     /**
      * @brief Change current language. Default to user's locale. use a bcp47 (2 letters code)
